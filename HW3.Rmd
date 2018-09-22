@@ -1,0 +1,217 @@
+---
+title: "Estimating The Location Parameter of a Cauchy Distribution With a Known Scale Parameter"
+subtitle: "5361 Homework 3"
+author: Qinxiao Shi ^[<qinxiao.shi@uconn.edu>]
+date: "`r format(Sys.time(), '%d %B %Y')`"
+output:
+  bookdown::pdf_document2
+documentclass: article
+papersize: letter
+fontsize: 11pt
+bibliography: template.bib
+biblio-style: asa
+
+---
+# Proofs 
+## Fisher Information
+
+The function of cauchy distribution, whose location parameter is $\theta$, scale parameter is $1$:
+$$f(x;\theta)=\frac{1}{\pi[1+(x-\theta)^2]}, x\in R, \theta \in R.$$
+
+Then we can calculate for fisher information:
+\begin{equation*}
+ \begin{split}
+L(\theta)&=\frac{1}{\pi^n \prod_{i=1}^{n}[1+(\theta-X_i)^2]}\\ \\
+\ell(\theta)&=\log(L(\theta))=-\log(\pi^n)-\log(\prod_{i=1}^{n}[1+(\theta-X_i)^2])\\ \\
+&=-n\ln\pi-\sum_{i=1}^{n} \ln[1+(\theta-X_i)^2]\\
+\ell^{\prime} (\theta) &=0-2\sum_{i=1}^{n} \frac {\theta-X_i}{1+(\theta-X_i)^2}=-2\sum_{i=1}^{n} \frac {\theta-X_i}{1+(\theta-X_i)^2}\\ \\
+\ell^{\prime\prime} (\theta)&=-2\sum_{i=1}^{n}(\frac {1}{1+(\theta -X_i)^2}-\frac {\theta - X_i}{1+(\theta -X_i)^2})\\
+&=-2\sum_{i=1}^{n}\frac {1-(\theta - X_i)^2}{(1+(\theta -X_i)^2)^2}\\ \\
+ \end{split}
+\end{equation*}
+
+\begin{equation*}
+ \begin{split}
+I_n(\theta)&=-E(\ell^{\prime \prime}(\theta))=2n\int_{-\infty}^{\infty}\frac{1-(\theta - X_i)^2}{(1+(\theta -X_i)^2)^2} \frac{1}{\pi (1+(x-\theta)^2)}dx\\
+&=\frac{2n}{\pi}\int_{-\infty}^{\infty}\frac{1-x^2}{(1+x^2)^2}\frac{1}{1+x^2}dx\\
+&=\frac{2n}{\pi}[\frac{1}{\frac{1}{x^2}+1}\Bigg|_{-\infty}^{\infty}+\int_{-\infty}^{\infty}\frac{2x^2}{(1+x^2)^3}dx]\\
+&=\frac{2n}{\pi}[0+\int_{-\infty}^{\infty}\frac{2x^2}{(1+x^2)^3}dx]
+=\frac{4n}{\pi}\int_{-\infty}^{\infty}\frac{x^2}{(1+x^2)^3}dx\\
+&=\frac{4n}{\pi}\int_{-\frac{\pi}{2}}^{\frac{\pi}{2}}\frac{\tan^{2}{t}}{[1+\tan^{2}{t})]^3}d\tan{t}
+=\frac{4n}{\pi}\int_{-\frac{\pi}{2}}^{\frac{\pi}{2}}(\sin^{2}{t}\cos^{2}{t})dt\\
+&=\frac{n}{\pi}\int_{-\frac{\pi}{2}}^{\frac{\pi}{2}}(\sin^{2}{2t})dt
+=\frac{n}{2\pi}\int_{-\frac{\pi}{2}}^{\frac{\pi}{2}}(1-\cos{4t})dt\\
+&=\frac{n}{2\pi}\times \pi=\frac{n}{2}
+ \end{split}
+\end{equation*}
+
+## Loglikehood Function Plot
+
+The plot below shows the loglikelihood function against $\theta=5$ when sample size $n=10$
+
+
+```{r likelihood, echo=TRUE}
+library("ggplot2")
+set.seed(20180909)
+cauchy <- rcauchy(n=10, location=5, scale=1)
+
+y <- function(cauchy, x){
+  y <- 0;
+  for(i in 1:length(cauchy)){
+  y <- y-log(pi)-log(1+(x-cauchy[i])^2)
+  }
+  return(y)
+}
+
+ggplot(data.frame(x=c(-10,30)), aes(x=x))+
+  stat_function(fun = function(x) y(cauchy, x))+
+  ggtitle("Loglikelihood Funciton VS. Theta")+
+  theme(plot.title = element_text(hjust = 0.5))+
+  labs(y="Value of Loglikelihood Funciton", x="theta")
+```
+
+# Newton-Raphson Method
+## Find MLE
+
+The plot of likelihood function vs. $\theta$ shows that the $MLE$ is in the range of $\theta \in (5,10)$, and it is pretty close to $\theta =5$.
+Next step is finding the MLE of $\theta$ using the Newton–Raphson method with initial values on a grid starting from $-10$ to $30$ with increment   $0.5$
+
+```{r NR, echo=TRUE, warning=FALSE}
+library("pracma")
+library("pander")
+
+f <- function(cauchy, x){
+  f <- sum(dcauchy(cauchy, location = x, scale = 1, log = TRUE))
+  return(f)
+}
+
+func1 <- function(cauchy, x){
+  f <- sapply(x, FUN = function(x) f(cauchy, x))
+  return(f)
+}
+
+gradient <- function(x){
+  gradient <- 0
+  for (i in 1:length(cauchy)) {
+    gradient <- gradient-2*(x-cauchy[i])/(1+(x-cauchy[i])^2)
+  }
+  return(gradient)
+}
+
+hessian <- function(x){
+  hessian <- 0
+  for (i in 1:length(cauchy)) {
+    hessian <- hessian-2*(1-(x-cauchy[i])^2)/(1+(x-cauchy[i])^2)^2
+  }
+  return(hessian)
+}
+
+
+init <- seq(-10, 20, by=0.5)
+
+  newton <- newtonRaphson(fun=function(x) gradient(x), x0=init,
+                          dfun=function(x) hessian(x))
+  root <- newton$root
+  
+  raphson <- data.frame(init = init, root = root)
+  colnames(raphson) <- c('Initial Value', 'Root')
+
+ggplot(raphson, aes(x=init, y=root))+ geom_point()+
+  ggtitle("Root From Newton–Raphson Method VS. Initial Value")+
+  theme(plot.title = element_text(hjust = 0.5))+
+  labs(y="Root from Newton-Raphson", x="Initial Value")
+
+knitr::kable(raphson, booktabs = TRUE, align = 'c', row.names = 1)
+```
+
+## Summarization
+From the table, it is obvious that the roots from Newton-Raphson method do not converge with initial value going large.
+
+
+# Fixed-Point Iteration
+
+```{r iteration, echo=TRUE, warning=FALSE}
+fxpt <- function(fun, init, alpha, maxiter = 100, tol = .Machine$double.eps^0.2){
+  for (i in 1:maxiter) {
+    init1 <- alpha*fun(init) + init
+    if(abs(init1 - init) < tol) break
+    init <- init1
+  }
+  if(i == maxiter)
+    warning("Reached the maximum iteration!")
+  return(data.frame(root = init, niter = i))
+}
+
+root.fxpt <- matrix(NA, nrow = length(init), ncol = 4)
+
+for (i in 1:length(init)) {
+  root.fxpt[i,1] <- init[i]
+}
+
+fxptfunc1 <- fxpt(fun = function(x) gradient(x), init = init, alpha = 1)
+  root.fxpt[,2] <- fxptfunc1$root
+
+fxptfunc2 <- fxpt(fun = function(x) gradient(x), init = init, alpha = 0.64)
+  root.fxpt[,3] <- fxptfunc2$root
+  
+fxptfunc3 <- fxpt(fun = function(x) gradient(x), init = init, alpha = 0.25)
+  root.fxpt[,4] <- fxptfunc3$root
+
+table2 <- as.data.frame(root.fxpt)
+
+p1 <- ggplot(table2, aes(x = V1, y = V2))+ 
+  geom_point()+
+  labs(x = "Initial Value", y = "Root")+
+  ggtitle("alpha = 1")+
+  theme(plot.title = element_text(hjust = 0.5))
+  
+p2 <- ggplot(table2, aes(x = V1, y = V3))+ 
+  geom_point()+
+  labs(x = "Initial Value", y = "Root")+
+  ggtitle("alpha = 0.64")+
+  theme(plot.title = element_text(hjust = 0.5))
+  
+p3 <- ggplot(table2, aes(x = V1, y = V4))+ 
+  geom_point()+
+  labs(x = "Initial Value", y = "Root")+
+  ggtitle("alpha = 0.25")+
+  theme(plot.title = element_text(hjust = 0.5))
+  
+gridExtra::grid.arrange(p1, p2, p3, nrow=3, 
+                        top="Root From Fixed-Point VS. Initial Value")
+```
+
+# Fisher Scoring and Newton-Raphson
+```{r FS, echo=TRUE, warning=FALSE}
+options(digits = 8)
+fsh <- function(fun, init, In, maxiter = 100, tol = .Machine$double.eps^0.2)
+{
+  for (i in 1:maxiter) {
+    init1 <- init + fun(init)/In
+    if(abs(init1 - init) < tol) break
+    init <- init1
+  }
+  if(i == maxiter)
+    message("Reached the maximum iteration!")
+  
+  return(data.frame(root = init1, iter = i))
+}
+  
+root.fsh <- matrix(NA, nrow = length(init), ncol = 2)
+fs <- fsh(fun = function(x) gradient(x), init = init, In = 5)
+fsroot <- fs$root
+NR <- newton(x0 = fsroot, fun = function(x) gradient(x), dfun = function(x) hessian(x))
+root.NR <- NR$root
+print(fs)
+table3 <- data.frame(init, root.NR)
+
+ggplot(table3, aes(x = init, y = root.NR))+
+  geom_point()+
+  ggtitle("Loglikelihood Funciton VS. Theta")+
+  theme(plot.title = element_text(hjust = 0.5))+
+  labs(y="Value of Loglikelihood Funciton", x="theta")
+```
+
+# Comment
+
+In conclusion, roots from Newton-Raphson method may be converging or not due to initial values, which means the method is not stable. But when we fix the iteration points, the roots can converge in a very fast speed in $\alpha=0.25$. If using fisher scoring to find $MLE$ of $\theta$, the effect is much better then the Newton-Raphson method only as well.
