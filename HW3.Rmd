@@ -79,6 +79,11 @@ Next step is finding the MLE of $\theta$ using the Newton–Raphson method with 
 ```{r NR, echo=TRUE, warning=FALSE}
 library("pracma")
 library("pander")
+library("gridExtra")
+library("grid")
+library("knitr")
+library("kableExtra")
+
 
 f <- function(cauchy, x){
   f <- sum(dcauchy(cauchy, location = x, scale = 1, log = TRUE))
@@ -121,7 +126,9 @@ ggplot(raphson, aes(x=init, y=root))+ geom_point()+
   theme(plot.title = element_text(hjust = 0.5))+
   labs(y="Root from Newton-Raphson", x="Initial Value")
 
-knitr::kable(raphson, booktabs = TRUE, align = 'c', row.names = 1)
+kable(raphson[1:31,], booktabs = TRUE, align = 'c', row.names = 1)
+kable(raphson[32:61,], booktabs = TRUE, align = 'c', row.names = 1)
+
 ```
 
 ## Summarization
@@ -202,7 +209,6 @@ fs <- fsh(fun = function(x) gradient(x), init = init, In = 5)
 fsroot <- fs$root
 NR <- newton(x0 = fsroot, fun = function(x) gradient(x), dfun = function(x) hessian(x))
 root.NR <- NR$root
-print(fs)
 table3 <- data.frame(init, root.NR)
 
 ggplot(table3, aes(x = init, y = root.NR))+
